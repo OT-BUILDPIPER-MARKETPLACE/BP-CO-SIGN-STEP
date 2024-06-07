@@ -12,9 +12,6 @@ STATUS=0
 if [ -z "$IMAGE_NAME" ] || [ -z "$IMAGE_SHA" ]
 then
     logInfoMessage "Image name/tag is not provided in env variable $IMAGE_NAME checking it in BP data"
-    logInfoMessage "Image Name -> ${IMAGE_NAME}"
-    logInfoMessage "Image Tag -> ${IMAGE_TAG}"
-    logInfoMessage "Image SHA Digest -> ${IMAGE_SHA}"
     IMAGE_NAME=`getComponentName`
     IMAGE_TAG=`getRepositoryTag`
     # IMAGE_SHA=`getImageSHA`
@@ -23,13 +20,31 @@ then
 fi
 FULL_IMAGE_SHA="${IMAGE_NAME}@${IMAGE_SHA}"
 
-logInfoMessage "cosign will sign the ${FULL_IMAGE_SHA}"
+logInfoMessage "Executing command"
+logInfoMessage "cosign login -u ${REGISTRY_USERNAME} -p <passwd> ${REGISTRY_URL} -d"
+cosign login -u $REGISTRY_USERNAME -p $REGISTRY_PASS $REGISTRY_URL
+# Check if cosign successful
+if [ $? -eq 0 ]; then
+    TASK_STATUS=0
+    logInfoMessage "cosign logged in successfully"
+    
+else
+    TASK_STATUS=1
+    logErrorMessage "cosign log in failed"
+    exit 1
+fi
+saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}
+
+logInfoMessage "cosign will SBOM verify the ${FULL_IMAGE_SHA}"
 
 echo "${COSIGN_PUB}" > base.txt
 
 base64 -d base.txt > cosign.pub
 
-cosign verify-attestation --key cosign.pub --type ${FORMAT_ARG} ${FULL_IMAGE_SHA} 
+logInfoMessage "Executing command"
+logInfoMessage "cosign verify-attestation --key cosign.pub --type ${SBOM_FORMAT_TYPE} ${FULL_IMAGE_SHA}" 
+
+cosign verify-attestation --key cosign.pub --insecure-ignore-tlog=true --type ${SBOM_FORMAT_TYPE} ${FULL_IMAGE_SHA}      
 
 # cat report/${OUTPUT_ARG}
 # sbom.cdx.intoto.jsonl
@@ -37,10 +52,10 @@ cosign verify-attestation --key cosign.pub --type ${FORMAT_ARG} ${FULL_IMAGE_SHA
 # Check if cosign successful
 if [ $? -eq 0 ]; then
     TASK_STATUS=0
-    logInfoMessage "Successfully attached SBOM on $FULL_IMAGE_NAME "
+    logInfoMessage "Successfully verfied SBOM in $FULL_IMAGE_NAME "
 else
     TASK_STATUS=1
-    logErrorMessage "Failed to attach SBOM  $FULL_IMAGE_NAME"
+    logErrorMessage "Failed to verfied SBOM in $FULL_IMAGE_NAME"
     exit 1
 fi
 saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}

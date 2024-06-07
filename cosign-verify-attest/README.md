@@ -1,13 +1,14 @@
-# BP-TRIVY-STEP
+# BP-COSIGN-VERIFY-ATTESTATION
 A BP step to orchestrate trivy execution
 
 ## Setup
-* Clone the code available at [BP-TRIVY-STEP](https://github.com/OT-BUILDPIPER-MARKETPLACE/BP-TRIVY-STEP)
+* Clone the code available at [COSIGN-VERIFY-ATTESTATION](https://github.com/OT-BUILDPIPER-MARKETPLACE/BP-TRIVY-STEP)
 * Build the docker image
 ```
 git submodule init
 git submodule update
-docker build -t ot/trivy:0.1 .
+
+docker build --no-cache -f cosign-verify-attest/Dockerfile -t registry.buildpiper.in/cosign-verify-attestation .
 ```
 ## Testing
 This section will give you a walkthrough of how you can use this image to do various types of testing
@@ -27,31 +28,11 @@ If you want to use it independently you have to take care of below things
     * You have to set WORKSPACE env variable
     * You have to set CODEBASE_DIR env variable
 
-* Do local testing via image only
-
-```
-# Failed Scan
-docker run -it --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/src -e WORKSPACE=/ -e CODEBASE_DIR=src -e IMAGE_NAME="ot/trivy" -e IMAGE_TAG=0.1 ot/trivy:0.1
-```
-
-```
-# Successful Scan
-docker run -it --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/src -e WORKSPACE=/ -e CODEBASE_DIR=src -e IMAGE_NAME="ot/trivy" -e IMAGE_TAG=0.1 -e SCAN_SEVERITY="CRITICAL" ot/trivy:0.1
-```
-
-### Filesystem Scan
-Filesystem scan will scan a filesystem, this BP step can be used independently and with BuildPiper as well
-
-```
-# Successful Scan
-docker run -it --rm -v $PWD:/src -e WORKSPACE=/ -e CODEBASE_DIR=src -e SCANNER=FILESYSTEM ot/trivy:0.1
-```
+* Do local testing via image 
 
 * Debugging
 ```
-docker run -it --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/src -e WORKSPACE=/ -e CODEBASE_DIR=src -e COSIGN_PASSWORD="123" -e IMAGE_NAME="panuharshit/salary" -e IMAGE_SHA="sha256:d03a8c0d0283535de15393d6c334372f1e455f16f26d762c6effc02db4c320a7" -e COSIGN_KEY="LS0tLS1CRUdJTiBFTkNSWVBURUQgQ09TSUdOIFBSSVZBVEUgS0VZLS0tLS0KZXlKclpHWWlPbnNpYm1GdFpTSTZJbk5qY25sd2RDSXNJbkJoY21GdGN5STZleUpPSWpvMk5UVXpOaXdpY2lJNgpPQ3dpY0NJNk1YMHNJbk5oYkhRaU9pSlNaVmRTWmtWdlVHdGxhM1l6UW5sdmEwc3ZkRFF2Vm1Gd1NHSXJhbTVTClQwVmhiWEpITlVzeVZHaE5QU0o5TENKamFYQm9aWElpT25zaWJtRnRaU0k2SW01aFkyd3ZjMlZqY21WMFltOTQKSWl3aWJtOXVZMlVpT2lKTmFFMUxkbmg0ZFdzdlVWWkxhelprU21SRFNrMVZOa001YzFjNFNEZHhUQ0o5TENKagphWEJvWlhKMFpYaDBJam9pVEVzeWRWZG9RMm8zVlVKeFZsQm1LelozY3psblRVOVRka1U1U1hkWVpFUlZlazk0CmVGbzBjV3R1VGxGM1VrSkhOV0Z0U3poNWRVaE5MMmh5TnpoQlFYUnJTazlEVFRaRmFuQnBNR3RSVFdWa01rY3cKTVZGMmVXcDRaVXc0YldSMmJtRjRVU3RJVDJSVGJHVnNURzFJZVdWamRIZDZNVFEzWlRKR05FOWhXV0paVldOcwpWa1pIUVZkTmNtcFRiMFU0VGpGNldtaHBPR1JDTjFkaVp6QkljMmR4Um5WMmFUTXJOMk42UlRkT1R6Qm5UVEZNCk1VdENUMFZNUVRGbVRtbDFla2xIU1ZadVYzUkNjMGs1ZFVFOVBTSjkKLS0tLS1FTkQgRU5DUllQVEVEIENPU0lHTiBQUklWQVRFIEtFWS0tLS0tCg==" --entrypoint bash panuharshit/cosign-attach:1.4-test
-
-docker run -it --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/src -e WORKSPACE=/ -e CODEBASE_DIR=src -e COSIGN_PASSWORD="123" -e IMAGE_NAME="panuharshit/salary" -e IMAGE_SHA="sha256:d03a8c0d0283535de15393d6c334372f1e455f16f26d762c6effc02db4c320a7" -e OUTPUT_ARG="sbom.cdx.intoto.jsonl" -e FORMAT_ARG="cyclonedx" -e COSIGN_PUB="LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFNmhHaEdRMmZhRnpQdnFSQ0FSL3lwd3llQ2wwagpjMDJmZVdTcXJFRkpadExKc3cwOERYQVk5ckJRbnN6am5scW13YkZEK2dKRUt0c3FVMnhNYnV1QzZBPT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==" panuharshit/cosign-verify-attest:1.0-test
+docker run -it --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:/src -e WORKSPACE=/ -e CODEBASE_DIR=src -e COSIGN_PASSWORD="123" -e IMAGE_NAME="panuharshit/salary" -e IMAGE_SHA="sha256:d03a8c0d0283535de15393d6c334372f1e455f16f26d762c6effc02db4c320a7" -e SBOM_FORMAT_TYPE="cyclonedx" -e COSIGN_PUB="LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFNmhHaEdRMmZhRnpQdnFSQ0FSL3lwd3llQ2wwagpjMDJmZVdTcXJFRkpadExKc3cwOERYQVk5ckJRbnN6am5scW13YkZEK2dKRUt0c3FVMnhNYnV1QzZBPT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==" registry.buildpiper.in/cosign-verify-attestation:1.0 
 ```
 ## Reference 
 * [Docs](https://aquasecurity.github.io/trivy/v0.32/docs/)
