@@ -29,6 +29,8 @@ logInfoMessage "cosign attest --key cosign.key --type ${FORMAT_ARG} --predicate 
 echo "${COSIGN_KEY}" > base.txt
 
 base64 -d base.txt > cosign.key
+# changing the file permissions
+chmod 600 cosign.key
 
 cosign attest --key cosign.key --type ${FORMAT_ARG} --predicate report/${REPORT_NAME} --no-upload=true ${FULL_IMAGE_SHA} --yes
 
