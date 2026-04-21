@@ -30,9 +30,9 @@ COPY BP-BASE-SHELL-STEPS/log-functions.sh /opt/buildpiper/shell-functions/log-fu
 # -------------------------------------------------------
 # Copy build script
 # -------------------------------------------------------
-COPY build.sh /opt/buildpiper/build.sh
-RUN chmod +x /opt/buildpiper/build.sh \
- && chown buildpiper:buildpiper /opt/buildpiper/build.sh
+COPY build.sh /home/buildpiper/build.sh
+RUN chmod +x /home/buildpiper/build.sh \
+ && chown buildpiper:buildpiper /home/buildpiper/build.sh
 
 # -------------------------------------------------------
 # Environment variables
@@ -44,9 +44,9 @@ ENV SLEEP_DURATION=5
 # Switch to non-root user
 # -------------------------------------------------------
 USER buildpiper
-WORKDIR /opt/buildpiper
+WORKDIR /home/buildpiper
 
 # -------------------------------------------------------
 # Entrypoint
 # -------------------------------------------------------
-ENTRYPOINT ["/opt/buildpiper/build.sh"]
+ENTRYPOINT ["/home/buildpiper/build.sh"]
