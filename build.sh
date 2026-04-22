@@ -2,75 +2,92 @@
 source /opt/buildpiper/shell-functions/functions.sh
 source /opt/buildpiper/shell-functions/log-functions.sh
 
-COSIGN_CODE_LOCATION="${WORKSPACE}"/"${CODEBASE_DIR}"
-logInfoMessage "I'll do processing at ["${WORKSPACE}"/"${CODEBASE_DIR}"]"
-sleep  $SLEEP_DURATION
-cd  "${COSIGN_CODE_LOCATION}"
-STATUS=0
+COSIGN_CODE_LOCATION="${WORKSPACE}/${CODEBASE_DIR}"
+logInfoMessage "I'll do processing at [${COSIGN_CODE_LOCATION}]"
+
+sleep $SLEEP_DURATION
+cd "${COSIGN_CODE_LOCATION}" || exit 1
+
 SOURCE_FILE_PATH="/bp/data/environment_build"
 
 BUILD_IMAGE_NAME=$(jq -r .build_detail.repository.name < "${SOURCE_FILE_PATH}")
 BUILD_IMAGE_TAG=$(jq -r .build_detail.repository.tag < "${SOURCE_FILE_PATH}")
-IMAGE=$BUILD_IMAGE_NAME:$BUILD_IMAGE_TAG
 
-#IMAGE_SHA=$(curl --unix-socket /var/run/docker.sock -s "http://localhost/images/${IMAGE}/json" | jq -r '.Id')
-
-logInfoMessage "Image name with tag: $IMAGE"
-#logInfoMessage "Image name with tag and sha: $IMAGE@$IMAGE_SHA"
-
-#FULL_IMAGE_SHA="${IMAGE}@${IMAGE_SHA}"
+IMAGE="${BUILD_IMAGE_NAME}:${BUILD_IMAGE_TAG}"
 REGISTRY_URL="${IMAGE%%/*}"
-logInfoMessage "$REGISTRY_URL"
 
-logInfoMessage "cosign login with ${REGISTRY_USERNAME} ${REGISTRY_URL}"
-sleep  $SLEEP_DURATION
-logInfoMessage "Executing command"
+logInfoMessage "Image: ${IMAGE}"
+logInfoMessage "Registry: ${REGISTRY_URL}"
 
-export COSIGN_PASSWORD="${COSIGN_PASSWORD}"
-export SSL_CERT_FILE="${SSL_CERT_FILE}"
+# -----------------------------
+# Crane Login
+# -----------------------------
+logInfoMessage "Logging into registry for crane"
 
-logInfoMessage "cosign login -u ${REGISTRY_USERNAME} -p REGISTRY_PASS ${REGISTRY_URL} -d"
+crane auth login \
+  -u "${REGISTRY_USERNAME}" \
+  -p "${REGISTRY_PASS}" \
+  "${REGISTRY_URL}"
 
-cosign login -u "${REGISTRY_USERNAME}" -p "${REGISTRY_PASS}" "${REGISTRY_URL}" -d
-
-if [ $? -eq 0 ]; then
-    TASK_STATUS=0
-    logInfoMessage "cosign logged in successfully"
-    
-else
-    TASK_STATUS=1
-    logErrorMessage "cosign log in failed"
-    exit 1
+if [ $? -ne 0 ]; then
+  logErrorMessage "crane login failed"
+  exit 1
 fi
 
+# -----------------------------
+# Get Digest
+# -----------------------------
+IMAGE_DIGEST=$(crane digest "$IMAGE")
+
+if [ -z "$IMAGE_DIGEST" ]; then
+  logErrorMessage "Failed to fetch digest for $IMAGE"
+  exit 1
+fi
+
+FULL_IMAGE="${IMAGE}@${IMAGE_DIGEST}"
+logInfoMessage "Resolved image: ${FULL_IMAGE}"
+
+# -----------------------------
+# Validate key
+# -----------------------------
 if [ ! -f "$COSIGN_KEY_PATH" ]; then
-    logErrorMessage "Cosign key not found at $COSIGN_KEY_PATH"
-    exit 1
+  logErrorMessage "Cosign key not found at $COSIGN_KEY_PATH"
+  exit 1
 fi
 
-logInfoMessage "cosign will sign the ${IMAGE}"
-sleep  $SLEEP_DURATION
-logInfoMessage "Executing command"
-logInfoMessage "cosign sign --key ${COSIGN_KEY_PATH} --tlog-upload=false --upload=true --yes ${IMAGE}"
+# -----------------------------
+# Sign
+# -----------------------------
+logInfoMessage "Signing image: ${FULL_IMAGE}"
+logInfoMessage "Executing .... cosign sign --key ${COSIGN_KEY_PATH} --tlog-upload=false --upload=true --yes ${FULL_IMAGE}"
 
-cosign sign --key "${COSIGN_KEY_PATH}" --tlog-upload=false --upload=true --yes "${IMAGE}"  
+cosign sign --key "${COSIGN_KEY_PATH}" --tlog-upload=false --upload=true --yes "${FULL_IMAGE}"
 
-
-if [ $? -eq 0 ]; then
-    TASK_STATUS=0
-    logInfoMessage "Successfully signed on $IMAGE "
-else
-    TASK_STATUS=1
-    logErrorMessage "Failed to sign  $IMAGE"
-    exit 1
+if [ $? -ne 0 ]; then
+  logErrorMessage "Signing failed for ${FULL_IMAGE}"
+  exit 1
 fi
 
+logInfoMessage "Successfully signed ${FULL_IMAGE}"
 
-logInfoMessage "cosign will verify the ${IMAGE}"
-logInfoMessage "Executing command"
-logInfoMessage "cosign verify --key ${COSIGN_PUB_PATH} --insecure-ignore-tlog=true ${IMAGE}"
+# -----------------------------
+# Verify
+# -----------------------------
+logInfoMessage "Verifying image: ${FULL_IMAGE}"
+logInfoMessage "Executing ....cosign verify --key ${COSIGN_PUB_PATH} --offline --insecure-ignore-tlog=true ${FULL_IMAGE}"
 
-cosign verify --key "${COSIGN_PUB_PATH}" --insecure-ignore-tlog=true "${IMAGE}"
+cosign verify --key "${COSIGN_PUB_PATH}" --offline --insecure-ignore-tlog=true "${FULL_IMAGE}"
+
 TASK_STATUS=$?
 
+if [ $TASK_STATUS -ne 0 ]; then
+  logErrorMessage "Verification failed for ${FULL_IMAGE}"
+  exit 1
+fi
+
+logInfoMessage "Verification successful"
+
+# -----------------------------
+# Save status
+# -----------------------------
 saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}
