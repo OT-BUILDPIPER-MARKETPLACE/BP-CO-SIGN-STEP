@@ -39,9 +39,8 @@ RUN mkdir -p /opt/buildpiper/shell-functions /bp /home/buildpiper \
 # -------------------------------------------------------
 # Copy shell functions
 # -------------------------------------------------------
-COPY BP-BASE-SHELL-STEPS/functions.sh /opt/buildpiper/shell-functions/functions.sh
-COPY BP-BASE-SHELL-STEPS/log-functions.sh /opt/buildpiper/shell-functions/log-functions.sh
-
+ADD BP-BASE-SHELL-STEPS /opt/buildpiper/shell-functions/
+COPY login.sh /opt/buildpiper/shell-functions/login.sh
 # -------------------------------------------------------
 # Copy build script
 # -------------------------------------------------------

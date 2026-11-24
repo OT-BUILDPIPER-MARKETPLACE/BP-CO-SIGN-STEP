@@ -1,6 +1,7 @@
 #!/bin/bash
 source /opt/buildpiper/shell-functions/functions.sh
 source /opt/buildpiper/shell-functions/log-functions.sh
+source /opt/buildpiper/shell-functions/login.sh
 
 COSIGN_CODE_LOCATION="${WORKSPACE}/${CODEBASE_DIR}"
 logInfoMessage "I'll do processing at [${COSIGN_CODE_LOCATION}]"
@@ -22,22 +23,18 @@ logInfoMessage "Registry: ${REGISTRY_URL}"
 # -----------------------------
 # Crane Login
 # -----------------------------
-logInfoMessage "Logging into registry for crane"
-
-crane auth login \
-  -u "${REGISTRY_USERNAME}" \
-  -p "${REGISTRY_PASS}" \
-  "${REGISTRY_URL}"
+login_registry "${REGISTRY_URL}"
 
 if [ $? -ne 0 ]; then
-  logErrorMessage "crane login failed"
-  exit 1
+    logErrorMessage "Registry login failed"
+    exit 1
 fi
 
 # -----------------------------
 # Get Digest
 # -----------------------------
-IMAGE_DIGEST=$(crane digest "$IMAGE")
+#IMAGE_DIGEST=$(crane digest "$IMAGE")
+IMAGE_DIGEST=$(crane --insecure digest "$IMAGE")
 
 if [ -z "$IMAGE_DIGEST" ]; then
   logErrorMessage "Failed to fetch digest for $IMAGE"
@@ -59,9 +56,11 @@ fi
 # Sign
 # -----------------------------
 logInfoMessage "Signing image: ${FULL_IMAGE}"
-logInfoMessage "Executing .... cosign sign --key ${COSIGN_KEY_PATH} --tlog-upload=false --upload=true --yes ${FULL_IMAGE}"
+#logInfoMessage "Executing .... cosign sign --key ${COSIGN_KEY_PATH} --tlog-upload=false --upload=true --yes ${FULL_IMAGE}"
+#cosign sign --key "${COSIGN_KEY_PATH}" --tlog-upload=false --upload=true --yes "${FULL_IMAGE}"
 
-cosign sign --key "${COSIGN_KEY_PATH}" --tlog-upload=false --upload=true --yes "${FULL_IMAGE}"
+logInfoMessage "Executing .... cosign sign --allow-insecure-registry --key "${COSIGN_KEY_PATH}" --tlog-upload=false --upload=true --yes "${FULL_IMAGE}""
+cosign sign --allow-insecure-registry --key "${COSIGN_KEY_PATH}" --tlog-upload=false --upload=true --yes "${FULL_IMAGE}"
 
 if [ $? -ne 0 ]; then
   logErrorMessage "Signing failed for ${FULL_IMAGE}"
@@ -74,9 +73,11 @@ logInfoMessage "Successfully signed ${FULL_IMAGE}"
 # Verify
 # -----------------------------
 logInfoMessage "Verifying image: ${FULL_IMAGE}"
-logInfoMessage "Executing ....cosign verify --key ${COSIGN_PUB_PATH} --offline --insecure-ignore-tlog=true ${FULL_IMAGE}"
+#logInfoMessage "Executing ....cosign verify --key ${COSIGN_PUB_PATH} --offline --insecure-ignore-tlog=true ${FULL_IMAGE}"
+#cosign verify --key "${COSIGN_PUB_PATH}" --offline --insecure-ignore-tlog=true "${FULL_IMAGE}"
 
-cosign verify --key "${COSIGN_PUB_PATH}" --offline --insecure-ignore-tlog=true "${FULL_IMAGE}"
+logInfoMessage "Executing ....cosign verify --allow-insecure-registry --key "${COSIGN_PUB_PATH}" --offline --insecure-ignore-tlog=true "${FULL_IMAGE}""
+cosign verify --allow-insecure-registry --key "${COSIGN_PUB_PATH}" --offline --insecure-ignore-tlog=true "${FULL_IMAGE}"
 
 TASK_STATUS=$?
 
