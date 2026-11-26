@@ -36,7 +36,16 @@ login_registry() {
         ENC_USER=$(jq -r '.username // empty' <<<"$reg")
         ENC_PASS=$(jq -r '.password // empty' <<<"$reg")
 
-        [[ "$URL" != "$TARGET_URL" ]] && continue
+        # Normalize registry URLs by removing protocol and trailing slash
+        NORMALIZED_URL="${URL#https://}"
+        NORMALIZED_URL="${NORMALIZED_URL#http://}"
+        NORMALIZED_URL="${NORMALIZED_URL%/}"
+        
+        NORMALIZED_TARGET="${TARGET_URL#https://}"
+        NORMALIZED_TARGET="${NORMALIZED_TARGET#http://}"
+        NORMALIZED_TARGET="${NORMALIZED_TARGET%/}"
+        
+        [[ "$NORMALIZED_URL" != "$NORMALIZED_TARGET" ]] && continue
 
         FOUND=true
 
@@ -59,30 +68,35 @@ PY
             logErrorMessage "Failed to decrypt password for $NAME"
             return 1
         }
+        
+        # Normalize registry URL
+        REGISTRY_HOST="${URL#https://}"
+        REGISTRY_HOST="${REGISTRY_HOST#http://}"
+        REGISTRY_HOST="${REGISTRY_HOST%/}"
+        # logInfoMessage "Logging into Docker registry: $NAME ($URL)"
 
-        logInfoMessage "Logging into Docker registry: $NAME ($URL)"
+        # echo "$PASSWORD" | docker login \
+        #     "$URL" \
+        #     --username "$USERNAME" \
+        #     --password-stdin
 
-        echo "$PASSWORD" | docker login \
-            "$URL" \
-            --username "$USERNAME" \
-            --password-stdin
+        # if [[ $? -ne 0 ]]; then
+        #     logErrorMessage "Docker login failed for $URL"
+        #     return 1
+        # fi
 
-        if [[ $? -ne 0 ]]; then
-            logErrorMessage "Docker login failed for $URL"
-            return 1
-        fi
+        # logInfoMessage "Docker login successful."
 
-        logInfoMessage "Docker login successful."
 
-        logInfoMessage "Logging into Crane registry: $NAME ($URL)"
+        logInfoMessage "Logging into Crane registry: $NAME ($REGISTRY_HOST)"
 
         crane auth login \
             -u "$USERNAME" \
             -p "$PASSWORD" \
-            "$URL"
+            "$REGISTRY_HOST"
 
         if [[ $? -ne 0 ]]; then
-            logErrorMessage "Crane login failed for $URL"
+            logErrorMessage "Crane login failed for $REGISTRY_HOST"
             return 1
         fi
 

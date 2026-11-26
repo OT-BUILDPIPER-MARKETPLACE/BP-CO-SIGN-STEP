@@ -8,7 +8,10 @@ RUN apk add --no-cache \
     jq \
     curl \
     ca-certificates \
-    wget
+    wget \
+    python3 \
+    py3-pip \
+    py3-cryptography
 
 # -------------------------------------------------------
 # Install Cosign (official binary - stable)
